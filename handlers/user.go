@@ -76,7 +76,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 			Value:    tokenString,
 			Path:     "/",
 			HttpOnly: true,
-			Secure:   false, // Use only in HTTPS
+			Secure:   true, // Use only in HTTPS
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   86400, // 24 hours
 		})
@@ -116,7 +116,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		Value:    tokenString,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false, // Use only in HTTPS
+		Secure:   true, // Use only in HTTPS
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   86400, // 24 hours
 	})
