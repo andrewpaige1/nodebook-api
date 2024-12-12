@@ -76,6 +76,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 			Value:    tokenString,
 			Path:     "/",
 			HttpOnly: true,
+			Domain:   "thenodebook.vercel.app/",
 			Secure:   true, // Use only in HTTPS
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   86400, // 24 hours
@@ -83,7 +84,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]string{
-			"message": "User already exists",
+			"message": "User already exists!",
 		})
 		log.Printf("User %s already exists\n", user.Nickname)
 		return
