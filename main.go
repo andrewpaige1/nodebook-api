@@ -18,14 +18,14 @@ func main() {
 	mux := http.NewServeMux()
 
 	// User routes
-	mux.HandleFunc("GET /api/users", auth.AuthMiddleware(handlers.GetUsers))
-	mux.HandleFunc("POST /api/users", handlers.AddUser)
+	mux.HandleFunc("GET /app/users", auth.AuthMiddleware(handlers.GetUsers))
+	mux.HandleFunc("POST /app/users", handlers.AddUser)
 
 	// Flashcard Set routes
-	mux.HandleFunc("GET /api/users/{nickname}/flashcard-sets", auth.AuthMiddleware(handlers.GetUserFlashcardSets))     // all flashcards
-	mux.HandleFunc("GET /api/users/{nickname}/sets/{title}", auth.AuthMiddleware(handlers.GetUserFlashcardSetByTitle)) // singular flashcard set
+	mux.HandleFunc("GET /app/users/{nickname}/flashcard-sets", auth.AuthMiddleware(handlers.GetUserFlashcardSets))     // all flashcards
+	mux.HandleFunc("GET /app/users/{nickname}/sets/{title}", auth.AuthMiddleware(handlers.GetUserFlashcardSetByTitle)) // singular flashcard set
 
-	mux.HandleFunc("POST /api/createSet", auth.AuthMiddleware(handlers.CreateSetWithCards))
+	mux.HandleFunc("POST /app/createSet", auth.AuthMiddleware(handlers.CreateSetWithCards))
 
 	// Configure CORS with specific options
 	corsHandler := cors.New(cors.Options{
