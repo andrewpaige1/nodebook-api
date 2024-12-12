@@ -64,7 +64,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	result := config.Database.Where("nickname = ?", user.Nickname).First(&existingUser)
 	if result.Error == nil {
 		// User already exists, return 200 status to prevent frontend errors
-		tokenString, err := auth.CreateToken(user.Nickname)
+		tokenString, err := auth.CreateToken(existingUser.Nickname)
 		if err != nil {
 			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 			log.Println("Token generation error:", err)
@@ -76,17 +76,17 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 			Value:    tokenString,
 			Path:     "/",
 			HttpOnly: true,
-			Domain:   "thenodebook.vercel.app/",
+			Domain:   "thenodebook.vercel.app",
 			Secure:   true, // Use only in HTTPS
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   86400, // 24 hours
 		})
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
 			"message": "User already exists!",
 		})
-		log.Printf("User %s already exists\n", user.Nickname)
+		log.Printf("User %s already exists\n", existingUser.Nickname)
 		return
 	}
 
@@ -117,7 +117,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		Value:    tokenString,
 		Path:     "/",
 		HttpOnly: true,
-		Domain:   "thenodebook.vercel.app/",
+		Domain:   "thenodebook.vercel.app",
 		Secure:   true, // Use only in HTTPS
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   86400, // 24 hours
