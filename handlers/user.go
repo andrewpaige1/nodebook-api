@@ -86,6 +86,8 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 			"message": "User already exists!",
 		})
 		log.Printf("User %s already exists\n", existingUser.Nickname)
+		log.Println("Set-Cookie Header:", w.Header().Get("Set-Cookie"))
+
 		return
 	}
 
