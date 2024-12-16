@@ -29,7 +29,7 @@ func main() {
 
 	// Configure CORS with specific options
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "https://thenodebook.vercel.app"},
+		AllowedOrigins:   []string{"http://localhost:3000", "https://thenodebook.vercel.app", "https://www.mindthred.com"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"},
 		AllowCredentials: true,
