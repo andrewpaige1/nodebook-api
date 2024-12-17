@@ -76,7 +76,6 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 			Value:    tokenString,
 			Path:     "/",
 			HttpOnly: true,
-			Domain:   ".mindthred.com",
 			Secure:   true, // Use only in HTTPS
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   86400, // 24 hours
@@ -118,7 +117,6 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		Name:     "auth_token",
 		Value:    tokenString,
 		Path:     "/",
-		Domain:   ".mindthred.com",
 		HttpOnly: true,
 		Secure:   true, // Use only in HTTPS
 		SameSite: http.SameSiteLaxMode,
