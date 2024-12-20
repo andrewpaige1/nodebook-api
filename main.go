@@ -26,6 +26,7 @@ func main() {
 	mux.HandleFunc("GET /app/users/{nickname}/sets/{title}", handlers.GetUserFlashcardSetByTitle)                  // singular flashcard set
 
 	mux.HandleFunc("POST /app/createSet", auth.AuthMiddleware(handlers.CreateSetWithCards))
+	mux.HandleFunc("POST /app/updateSet", auth.AuthMiddleware(handlers.UpdateSetWithCards))
 
 	// Configure CORS with specific options
 	corsHandler := cors.New(cors.Options{
