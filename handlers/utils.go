@@ -9,12 +9,12 @@ import (
 )
 
 func CreateSetWithCards(w http.ResponseWriter, r *http.Request) {
-
-	// Simplified request struct
+	// Updated request struct to include isPublic
 	var requestData struct {
 		Name     string             `json:"name"`
 		Nickname string             `json:"nickname"` // Auth0 nickname
 		Cards    []models.Flashcard `json:"cards"`
+		IsPublic bool               `json:"isPublic"`
 	}
 
 	// Decode the incoming JSON
@@ -37,10 +37,11 @@ func CreateSetWithCards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create the flashcard set
+	// Create the flashcard set with IsPublic field
 	flashcardSet := models.FlashcardSet{
-		Title:  requestData.Name,
-		UserID: user.ID,
+		Title:    requestData.Name,
+		UserID:   user.ID,
+		IsPublic: requestData.IsPublic, // Set the IsPublic field
 	}
 
 	// Start a database transaction

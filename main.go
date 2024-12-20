@@ -22,8 +22,8 @@ func main() {
 	mux.HandleFunc("POST /app/users", handlers.AddUser)
 
 	// Flashcard Set routes
-	mux.HandleFunc("GET /app/users/{nickname}/flashcard-sets", auth.AuthMiddleware(handlers.GetUserFlashcardSets))     // all flashcards
-	mux.HandleFunc("GET /app/users/{nickname}/sets/{title}", auth.AuthMiddleware(handlers.GetUserFlashcardSetByTitle)) // singular flashcard set
+	mux.HandleFunc("GET /app/users/{nickname}/flashcard-sets", auth.AuthMiddleware(handlers.GetUserFlashcardSets)) // all flashcards
+	mux.HandleFunc("GET /app/users/{nickname}/sets/{title}", handlers.GetUserFlashcardSetByTitle)                  // singular flashcard set
 
 	mux.HandleFunc("POST /app/createSet", auth.AuthMiddleware(handlers.CreateSetWithCards))
 
