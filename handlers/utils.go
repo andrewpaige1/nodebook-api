@@ -131,62 +131,70 @@ func UpdateSetWithCards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Start a database transaction
-	tx := config.Database.Begin()
-	if tx.Error != nil {
-		http.Error(w, "Could not begin transaction", http.StatusInternalServerError)
-		return
-	}
+	var duplicateSet models.FlashcardSet
+	duplicateResult := config.Database.Where("title = ? AND user_id = ?", requestData.Name, user.ID).First(&duplicateSet)
 
-	// Update the flashcard set
-	existingSet.Title = requestData.Name
-	existingSet.IsPublic = requestData.IsPublic
+	if duplicateResult.Error == nil {
+		http.Error(w, "User already has flashcard set with this title", http.StatusConflict)
+	} else {
 
-	if err := tx.Save(&existingSet).Error; err != nil {
-		tx.Rollback()
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Delete existing cards
-	if err := tx.Where("set_id = ?", existingSet.ID).Delete(&models.Flashcard{}).Error; err != nil {
-		tx.Rollback()
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Create new cards
-	for i := range requestData.Cards {
-		// Set the SetID for each flashcard
-		requestData.Cards[i].SetID = existingSet.ID
-
-		// Validate each flashcard
-		if requestData.Cards[i].Term == "" || requestData.Cards[i].Solution == "" {
-			tx.Rollback()
-			http.Error(w, "Each flashcard must have a term and solution", http.StatusBadRequest)
+		// Start a database transaction
+		tx := config.Database.Begin()
+		if tx.Error != nil {
+			http.Error(w, "Could not begin transaction", http.StatusInternalServerError)
 			return
 		}
 
-		// Create the flashcard
-		if err := tx.Create(&requestData.Cards[i]).Error; err != nil {
+		// Update the flashcard set
+		existingSet.Title = requestData.Name
+		existingSet.IsPublic = requestData.IsPublic
+
+		if err := tx.Save(&existingSet).Error; err != nil {
 			tx.Rollback()
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	}
 
-	// Commit the transaction
-	if err := tx.Commit().Error; err != nil {
-		http.Error(w, "Could not commit transaction", http.StatusInternalServerError)
-		return
-	}
+		// Delete existing cards
+		if err := tx.Where("set_id = ?", existingSet.ID).Delete(&models.Flashcard{}).Error; err != nil {
+			tx.Rollback()
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	// Preload associated data for the response
-	if err := config.Database.Preload("Flashcards").First(&existingSet, existingSet.ID).Error; err != nil {
-		http.Error(w, "Error retrieving updated set", http.StatusInternalServerError)
-		return
-	}
+		// Create new cards
+		for i := range requestData.Cards {
+			// Set the SetID for each flashcard
+			requestData.Cards[i].SetID = existingSet.ID
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(existingSet)
+			// Validate each flashcard
+			if requestData.Cards[i].Term == "" || requestData.Cards[i].Solution == "" {
+				tx.Rollback()
+				http.Error(w, "Each flashcard must have a term and solution", http.StatusBadRequest)
+				return
+			}
+
+			// Create the flashcard
+			if err := tx.Create(&requestData.Cards[i]).Error; err != nil {
+				tx.Rollback()
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		// Commit the transaction
+		if err := tx.Commit().Error; err != nil {
+			http.Error(w, "Could not commit transaction", http.StatusInternalServerError)
+			return
+		}
+
+		// Preload associated data for the response
+		if err := config.Database.Preload("Flashcards").First(&existingSet, existingSet.ID).Error; err != nil {
+			http.Error(w, "Error retrieving updated set", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(existingSet)
+	}
 }
