@@ -11,7 +11,7 @@ type Flashcard struct {
 	gorm.Model
 	Term     string `gorm:"not null;size:200"`
 	Solution string `gorm:"not null;size:1000"`
-	Concept  string `gorm:"size:100"`
+	Concept  string `gorm:"size:1000"`
 
 	SetID        uint         `gorm:"not null"`
 	FlashcardSet FlashcardSet `gorm:"foreignKey:SetID" json:"-"`

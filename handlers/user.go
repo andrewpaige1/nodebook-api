@@ -41,9 +41,6 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Log the raw input
-	log.Println("Raw Input:", string(body))
-
 	// Reset body for decoding
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 
@@ -55,9 +52,6 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		log.Println("Decoding error:", err)
 		return
 	}
-
-	// Log the decoded user
-	log.Printf("Decoded User: %+v\n", user)
 
 	// Check if user already exists
 	var existingUser models.User

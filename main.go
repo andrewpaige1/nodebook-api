@@ -27,6 +27,7 @@ func main() {
 
 	mux.HandleFunc("POST /app/createSet", auth.AuthMiddleware(handlers.CreateSetWithCards))
 	mux.HandleFunc("POST /app/updateSet", auth.AuthMiddleware(handlers.UpdateSetWithCards))
+	mux.HandleFunc("POST /app/deleteSet", auth.AuthMiddleware(handlers.DeleteUserFlashcardSet))
 
 	// Configure CORS with specific options
 	corsHandler := cors.New(cors.Options{

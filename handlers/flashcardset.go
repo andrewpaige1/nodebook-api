@@ -50,6 +50,60 @@ func GetUserFlashcardSets(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func DeleteUserFlashcardSet(w http.ResponseWriter, r *http.Request) {
+
+	var reqData struct {
+		Nickname string `json:"nickname"`
+		Title    string `json:"setName"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&reqData)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var user models.User
+	dbUserErr := config.Database.Where("nickname = ?", reqData.Nickname).First(&user).Error
+	if dbUserErr != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	var userSets models.FlashcardSet
+	readUserSetsErr := config.Database.Where("user_id = ? AND title = ?", user.ID, reqData.Title).First(&userSets).Error
+
+	if readUserSetsErr != nil {
+		http.Error(w, "Flashcard set not found", http.StatusNotFound)
+		return
+	}
+
+	var associatedFlashcards models.Flashcard
+	deleteFlashCardsErr := config.Database.Where("set_id = ?", userSets.ID).Delete(&associatedFlashcards).Error
+
+	if deleteFlashCardsErr != nil {
+		http.Error(w, "Failed to delete flashcards", http.StatusNotFound)
+		return
+	}
+
+	deleteSetErr := config.Database.Delete(&userSets).Error
+
+	if deleteSetErr != nil {
+		http.Error(w, "Failed to delete set", http.StatusNotFound)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "success",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
 func GetFlashcardSet(w http.ResponseWriter, r *http.Request) {
 	// Extract ID from URL
 	idStr := r.PathValue("id")
