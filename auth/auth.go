@@ -13,7 +13,7 @@ import (
 func CreateToken(username string) (string, error) {
 	secretKeyStr := os.Getenv("JWT_SECRET_KEY")
 	if secretKeyStr == "" {
-		log.Fatal("JWT_SECRET_KEY not set")
+		log.Fatal("auth.go: JWT_SECRET_KEY not set")
 	}
 
 	secretKey := []byte(secretKeyStr)
@@ -34,7 +34,7 @@ func CreateToken(username string) (string, error) {
 func VerifyToken(tokenString string) error {
 	secretKeyStr := os.Getenv("JWT_SECRET_KEY")
 	if secretKeyStr == "" {
-		return fmt.Errorf("JWT secret key not set")
+		return fmt.Errorf("auth.go: JWT secret key not set")
 	}
 
 	// Convert to byte slice

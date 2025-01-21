@@ -9,9 +9,10 @@ import (
 // FlashcardSet represents a collection of flashcards
 type FlashcardSet struct {
 	gorm.Model
-	Title  string `gorm:"not null;size:100"`
-	UserID uint   `gorm:"not null"`
-	User   User   `gorm:"foreignKey:UserID" json:"-"`
+	Title    string    `gorm:"not null;size:100"`
+	UserID   uint      `gorm:"not null"`
+	User     User      `gorm:"foreignKey:UserID" json:"-"`
+	MindMaps []MindMap `gorm:"foreignKey:SetID"` // Associated mind maps
 
 	Flashcards []Flashcard `gorm:"foreignKey:SetID"`
 
