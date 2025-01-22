@@ -16,8 +16,6 @@ type MindMapStateResponse struct {
 	SetID       uint                       `json:"setID"`
 	Connections []models.MindMapConnection `json:"connections"`
 	NodeLayouts []models.MindMapNodeLayout `json:"nodeLayouts"`
-	CreatedAt   string                     `json:"createdAt"`
-	UpdatedAt   string                     `json:"updatedAt"`
 }
 
 func GetMindMapState(w http.ResponseWriter, r *http.Request) {
@@ -58,15 +56,6 @@ func GetMindMapState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if the requesting user has permission to view this mind map
-	// Get the user from the auth context - implementation depends on your auth setup
-	requestingUserID := r.Context().Value("userID").(uint)
-
-	if !mindMap.IsPublic && mindMap.UserID != requestingUserID {
-		http.Error(w, "Unauthorized to view this mind map", http.StatusForbidden)
-		return
-	}
-
 	// Construct the response
 	response := MindMapStateResponse{
 		ID:          mindMap.ID,
@@ -75,8 +64,6 @@ func GetMindMapState(w http.ResponseWriter, r *http.Request) {
 		SetID:       mindMap.SetID,
 		Connections: mindMap.Connections,
 		NodeLayouts: nodeLayouts,
-		CreatedAt:   mindMap.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:   mindMap.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	// Set response headers
@@ -175,6 +162,7 @@ func CreateMindMap(w http.ResponseWriter, r *http.Request) {
 	var requestData struct {
 		Title       string                     `json:"title"`
 		Nickname    string                     `json:"nickname"` // Auth0 nickname
+		Data        string                     `json:"data"`
 		SetID       uint                       `json:"setID"`
 		IsPublic    bool                       `json:"isPublic"`
 		Connections []models.MindMapConnection `json:"connections"`
