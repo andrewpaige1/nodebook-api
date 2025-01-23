@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/andrewpaige1/nodebook-api/config"
@@ -77,6 +78,195 @@ func GetMindMapState(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error encoding response", http.StatusInternalServerError)
 		return
 	}
+}
+
+func UpdateConnections(w http.ResponseWriter, r *http.Request) {
+	var requestData struct {
+		MindMapID         uint   `json:"mindMapID"`
+		Nickname          string `json:"nickname"`
+		SourceID          uint   `json:"source"`
+		TargetID          uint   `json:"target"`
+		RelationshipLabel string `json:"relationshipLabel"`
+	}
+
+	// Decode the request payload
+	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+		log.Printf("Received data: %+v", requestData)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if requestData.Nickname == "" || requestData.MindMapID == 0 || requestData.SourceID == 0 || requestData.TargetID == 0 {
+		http.Error(w, "All fields are required", http.StatusBadRequest)
+		return
+	}
+
+	// Find the user
+	var user models.User
+	if err := config.Database.Where("nickname = ?", requestData.Nickname).First(&user).Error; err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Verify the mind map exists and belongs to the user
+	var mindMap models.MindMap
+	if err := config.Database.Where("id = ? AND user_id = ?", requestData.MindMapID, user.ID).First(&mindMap).Error; err != nil {
+		http.Error(w, "Mind map not found or unauthorized", http.StatusNotFound)
+		return
+	}
+
+	// Check if the connection already exists
+	var connection models.MindMapConnection
+	err := config.Database.Where(
+		"mind_map_id = ? AND source_id = ? AND target_id = ?",
+		requestData.MindMapID,
+		requestData.SourceID,
+		requestData.TargetID,
+	).First(&connection).Error
+
+	if err != nil {
+		// Connection doesn't exist, create new one
+		newConnection := models.MindMapConnection{
+			MindMapID:    requestData.MindMapID,
+			SourceID:     requestData.SourceID,
+			TargetID:     requestData.TargetID,
+			Relationship: requestData.RelationshipLabel,
+		}
+
+		if err := config.Database.Create(&newConnection).Error; err != nil {
+			http.Error(w, "Error creating the connection", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(newConnection)
+		return
+	}
+
+	// Connection exists, update it
+	if err := config.Database.Model(&connection).Where(
+		"mind_map_id = ? AND source_id = ? AND target_id = ?",
+		requestData.MindMapID,
+		requestData.SourceID,
+		requestData.TargetID,
+	).Update("relationship", requestData.RelationshipLabel).Error; err != nil {
+		http.Error(w, "Error updating the connection", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(connection)
+}
+
+func UpdateNodeLayout(w http.ResponseWriter, r *http.Request) {
+	var requestData struct {
+		MindMapID uint   `json:"mindMapID"`
+		Nickname  string `json:"nickname"`
+		Nodes     []struct {
+			FlashcardID uint    `json:"flashcardID"`
+			XPosition   float64 `json:"xPosition"`
+			YPosition   float64 `json:"yPosition"`
+			Data        string  `json:"data"`
+		} `json:"nodes"`
+	}
+
+	// Decode the request payload
+	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+		log.Printf("Received data: %+v", requestData)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if requestData.Nickname == "" || requestData.MindMapID == 0 || len(requestData.Nodes) == 0 {
+		http.Error(w, "Required fields are missing", http.StatusBadRequest)
+		return
+	}
+
+	// Find the user
+	var user models.User
+	if err := config.Database.Where("nickname = ?", requestData.Nickname).First(&user).Error; err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Verify the mind map exists and belongs to the user
+	var mindMap models.MindMap
+	if err := config.Database.Where("id = ? AND user_id = ?", requestData.MindMapID, user.ID).First(&mindMap).Error; err != nil {
+		http.Error(w, "Mind map not found or unauthorized", http.StatusNotFound)
+		return
+	}
+
+	// Start a transaction
+	tx := config.Database.Begin()
+	if tx.Error != nil {
+		http.Error(w, "Failed to start transaction", http.StatusInternalServerError)
+		return
+	}
+
+	updatedLayouts := make([]models.MindMapNodeLayout, 0, len(requestData.Nodes))
+
+	for _, node := range requestData.Nodes {
+		// Check if the node layout already exists
+		var nodeLayout models.MindMapNodeLayout
+		err := tx.Where(
+			"mind_map_id = ? AND flashcard_id = ?",
+			requestData.MindMapID,
+			node.FlashcardID,
+		).First(&nodeLayout).Error
+
+		if err != nil {
+			// Node layout doesn't exist, create new one
+			newNodeLayout := models.MindMapNodeLayout{
+				MindMapID:   requestData.MindMapID,
+				FlashcardID: node.FlashcardID,
+				XPosition:   node.XPosition,
+				YPosition:   node.YPosition,
+				Data:        node.Data,
+			}
+
+			if err := tx.Create(&newNodeLayout).Error; err != nil {
+				tx.Rollback()
+				http.Error(w, "Error creating node layout", http.StatusInternalServerError)
+				return
+			}
+
+			updatedLayouts = append(updatedLayouts, newNodeLayout)
+		} else {
+			// Node layout exists, update it
+			updates := map[string]interface{}{
+				"x_position": node.XPosition,
+				"y_position": node.YPosition,
+				"data":       node.Data,
+			}
+
+			if err := tx.Model(&nodeLayout).Updates(updates).Error; err != nil {
+				tx.Rollback()
+				http.Error(w, "Error updating node layout", http.StatusInternalServerError)
+				return
+			}
+
+			// Reload the updated node layout
+			if err := tx.First(&nodeLayout, nodeLayout.ID).Error; err != nil {
+				tx.Rollback()
+				http.Error(w, "Error retrieving updated node layout", http.StatusInternalServerError)
+				return
+			}
+
+			updatedLayouts = append(updatedLayouts, nodeLayout)
+		}
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedLayouts)
 }
 
 func DeleteMindMap(w http.ResponseWriter, r *http.Request) {
@@ -366,184 +556,4 @@ func GetMindMap(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(mindmap)
-}
-
-// UpdateOrCreateMindMap handles upserting a mind map (update if it exists by Title & user, otherwise create).
-func UpdateOrCreateMindMap(w http.ResponseWriter, r *http.Request) {
-	// We'll use the same request structure as CreateMindMap
-	var requestData struct {
-		Title       string                     `json:"title"`
-		Nickname    string                     `json:"nickname"`
-		SetID       uint                       `json:"setID"`
-		IsPublic    bool                       `json:"isPublic"`
-		Connections []models.MindMapConnection `json:"connections"`
-		NodeLayouts []models.MindMapNodeLayout `json:"nodeLayouts"`
-	}
-
-	// Decode JSON
-	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
-		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Validate required fields
-	if requestData.Title == "" || requestData.Nickname == "" || requestData.SetID == 0 {
-		http.Error(w, "Title, nickname, and setID are required", http.StatusBadRequest)
-		return
-	}
-
-	// Find user by nickname
-	var user models.User
-	if err := config.Database.Where("nickname = ?", requestData.Nickname).First(&user).Error; err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	// Verify the flashcard set exists and belongs to the user
-	var flashcardSet models.FlashcardSet
-	if err := config.Database.Where("id = ? AND user_id = ?", requestData.SetID, user.ID).First(&flashcardSet).Error; err != nil {
-		http.Error(w, "Flashcard set not found or unauthorized", http.StatusNotFound)
-		return
-	}
-
-	// Start a transaction
-	tx := config.Database.Begin()
-	if tx.Error != nil {
-		http.Error(w, "Could not begin transaction", http.StatusInternalServerError)
-		return
-	}
-
-	// Try to find existing mind map by Title and user
-	var mindMap models.MindMap
-	err := tx.Where("title = ? AND user_id = ?", requestData.Title, user.ID).First(&mindMap).Error
-
-	// If not found, create a new one
-	if err != nil {
-		// If the error is other than record not found, rollback
-		if err.Error() != "record not found" {
-			tx.Rollback()
-			http.Error(w, "Failed to query mind map: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		mindMap = models.MindMap{
-			Title:    requestData.Title,
-			SetID:    requestData.SetID,
-			UserID:   user.ID,
-			IsPublic: requestData.IsPublic,
-		}
-		if err := tx.Create(&mindMap).Error; err != nil {
-			tx.Rollback()
-			http.Error(w, "Failed to create mind map: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	} else {
-		// If found, update existing mind map
-		mindMap.IsPublic = requestData.IsPublic
-		mindMap.SetID = requestData.SetID
-
-		if err := tx.Save(&mindMap).Error; err != nil {
-			tx.Rollback()
-			http.Error(w, "Failed to update mind map: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Remove existing connections and node layouts for this mind map
-		if err := tx.Where("mind_map_id = ?", mindMap.ID).Delete(&models.MindMapConnection{}).Error; err != nil {
-			tx.Rollback()
-			http.Error(w, "Failed to remove old connections: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if err := tx.Where("mind_map_id = ?", mindMap.ID).Delete(&models.MindMapNodeLayout{}).Error; err != nil {
-			tx.Rollback()
-			http.Error(w, "Failed to remove old node layouts: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Now (re)create connections
-	for i := range requestData.Connections {
-		requestData.Connections[i].MindMapID = mindMap.ID
-
-		// Validate connection
-		if requestData.Connections[i].SourceID == 0 || requestData.Connections[i].TargetID == 0 {
-			tx.Rollback()
-			http.Error(w, "Each connection must have a source and target flashcard", http.StatusBadRequest)
-			return
-		}
-
-		// Verify both source and target flashcards exist in the set
-		var count int64
-		if err := tx.Model(&models.Flashcard{}).
-			Where("id IN (?, ?) AND set_id = ?", requestData.Connections[i].SourceID, requestData.Connections[i].TargetID, flashcardSet.ID).
-			Count(&count).Error; err != nil {
-			tx.Rollback()
-			http.Error(w, "Error validating source/target flashcards", http.StatusInternalServerError)
-			return
-		}
-		if count != 2 {
-			tx.Rollback()
-			http.Error(w, "Invalid source or target flashcard", http.StatusBadRequest)
-			return
-		}
-
-		if err := tx.Create(&requestData.Connections[i]).Error; err != nil {
-			tx.Rollback()
-			http.Error(w, "Failed to create mind map connection: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Now (re)create node layouts
-	for i := range requestData.NodeLayouts {
-		requestData.NodeLayouts[i].MindMapID = mindMap.ID
-
-		// Validate node layout
-		if requestData.NodeLayouts[i].FlashcardID == 0 {
-			tx.Rollback()
-			http.Error(w, "Each node layout must reference a flashcard", http.StatusBadRequest)
-			return
-		}
-
-		// Verify the referenced flashcard belongs to the set
-		var exists bool
-		if err := tx.Model(&models.Flashcard{}).
-			Where("id = ? AND set_id = ?", requestData.NodeLayouts[i].FlashcardID, flashcardSet.ID).
-			Select("1").Scan(&exists).Error; err != nil {
-			tx.Rollback()
-			http.Error(w, "Error validating node layout flashcard", http.StatusInternalServerError)
-			return
-		}
-		if !exists {
-			tx.Rollback()
-			http.Error(w, "Invalid flashcard reference in node layout", http.StatusBadRequest)
-			return
-		}
-
-		if err := tx.Create(&requestData.NodeLayouts[i]).Error; err != nil {
-			tx.Rollback()
-			http.Error(w, "Failed to create node layout: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Commit transaction
-	if err := tx.Commit().Error; err != nil {
-		http.Error(w, "Could not commit transaction", http.StatusInternalServerError)
-		return
-	}
-
-	// Preload connections (and their source/target) for the response
-	if err := config.Database.
-		Preload("Connections").
-		Preload("Connections.Source").
-		Preload("Connections.Target").
-		First(&mindMap, mindMap.ID).Error; err != nil {
-		http.Error(w, "Error retrieving upserted mind map", http.StatusInternalServerError)
-		return
-	}
-
-	// Return the resulting mind map
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(mindMap)
 }

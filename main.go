@@ -43,10 +43,11 @@ func main() {
 	mux.HandleFunc("GET /app/{nickname}/sets/mindmap/{setName}", auth.AuthMiddleware(handlers.GetMindMap))
 	mux.HandleFunc("GET /app/{nickname}/{setName}/mindmaps", auth.AuthMiddleware(handlers.GetMindMapForSets))
 	mux.HandleFunc("GET /app/{nickname}/mindmap/state/{title}", auth.AuthMiddleware((handlers.GetMindMapState)))
-	mux.HandleFunc("POST /app/mindmaps/updates", auth.AuthMiddleware((handlers.UpdateOrCreateMindMap)))
 	mux.HandleFunc("POST /app/mindmap/create", auth.AuthMiddleware((handlers.CreateMindMap)))
 	mux.HandleFunc("POST /app/mindmap/checkDup", auth.AuthMiddleware((handlers.CheckDup)))
 	mux.HandleFunc("POST /app/mindmap/delete", auth.AuthMiddleware((handlers.DeleteMindMap)))
+	mux.HandleFunc("POST /app/mindmap/updateConnections", auth.AuthMiddleware((handlers.UpdateConnections)))
+	mux.HandleFunc("POST /app/mindmap/updateNodeLayout", auth.AuthMiddleware((handlers.UpdateNodeLayout)))
 
 	// Configure CORS with specific options
 	corsHandler := cors.New(cors.Options{
