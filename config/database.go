@@ -1,7 +1,10 @@
 package config
 
 import (
+	"os"
+
 	"github.com/andrewpaige1/nodebook-api/models"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -10,9 +13,19 @@ var Database *gorm.DB
 
 func Connect() error {
 	var err error
+	var dialect gorm.Dialector
 
-	// Open SQLite database - this will create a file named nodebook.db
-	Database, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	// Check if DB_URL is set (production environment)
+	dbURL := os.Getenv("DB_URL")
+	if dbURL != "" {
+		dialect = postgres.Open(dbURL)
+	} else {
+		// Use SQLite for local development
+		dialect = sqlite.Open("test.db")
+	}
+
+	// Open database connection
+	Database, err = gorm.Open(dialect, &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
 	}
