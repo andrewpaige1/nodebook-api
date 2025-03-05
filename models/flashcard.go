@@ -10,7 +10,7 @@ import (
 type Flashcard struct {
 	gorm.Model
 	Term     string `gorm:"not null;size:200"`
-	Solution string `gorm:"not null;size:1000"`
+	Solution string `gorm:"not null;size:2500"`
 	Concept  string `gorm:"size:1000"`
 
 	SetID        uint         `gorm:"not null"`
