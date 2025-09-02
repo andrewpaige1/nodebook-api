@@ -59,7 +59,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get the token from the cookie
 		cookie, err := r.Cookie("auth_token")
-		fmt.Println(cookie)
+		//fmt.Println(cookie)
 		if err != nil {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return

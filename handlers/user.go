@@ -70,8 +70,8 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 			Value:    tokenString,
 			Path:     "/",
 			HttpOnly: true,
-			Domain:   ".mindthred.com",
-			Secure:   true, // Use only in HTTPS
+			Domain:   config.Env.Domain,
+			Secure:   config.Env.CookieSecure,
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   86400, // 24 hours
 		})
@@ -113,8 +113,8 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		Value:    tokenString,
 		Path:     "/",
 		HttpOnly: true,
-		Domain:   ".mindthred.com",
-		Secure:   true, // Use only in HTTPS
+		Domain:   config.Env.Domain,
+		Secure:   config.Env.CookieSecure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   86400, // 24 hours
 	})
