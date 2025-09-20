@@ -11,6 +11,7 @@ type FlashcardSet struct {
 	gorm.Model
 	Title    string    `gorm:"not null;size:100"`
 	UserID   uint      `gorm:"not null"`
+	PublicID string    `gorm:"size:100;uniqueIndex"`
 	User     User      `gorm:"foreignKey:UserID" json:"-"`
 	MindMaps []MindMap `gorm:"foreignKey:SetID"` // Associated mind maps
 

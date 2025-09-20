@@ -1,2 +1,6 @@
 .env
 test.db
+copy_all_tables.go
+reset_pk
+scripts
+migrate

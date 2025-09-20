@@ -9,6 +9,7 @@ type MindMap struct {
 	SetID    uint   `gorm:"not null"` // References FlashcardSet
 	UserID   uint   `gorm:"not null"` // References User
 	IsPublic bool   `gorm:"default:false"`
+	PublicID string `gorm:"size:100;uniqueIndex"`
 
 	// Relationships between flashcards
 	Connections []MindMapConnection `gorm:"foreignKey:MindMapID"`
