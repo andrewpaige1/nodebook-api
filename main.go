@@ -5,16 +5,16 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/andrewpaige1/nodebook-api/auth"
 	"github.com/andrewpaige1/nodebook-api/config"
 	"github.com/andrewpaige1/nodebook-api/handlers"
+	"github.com/andrewpaige1/nodebook-api/middleware"
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 )
 
 func init() {
 	// Load .env file if not in production environment
-	if os.Getenv("RENDER") == "" {
+	if os.Getenv("RAILWAY_ENVIRONMENT_NAME") == "" {
 		err := godotenv.Load()
 		if err != nil {
 			log.Printf("Warning: .env file not found, environment variables might not be loaded: %v", err)
@@ -25,29 +25,40 @@ func init() {
 func main() {
 	// Initialize database connection
 	config.Connect()
-	// Create a new ServeMux
+	authMiddleware := middleware.EnsureValidToken()
+
+	DBHandler := &handlers.DBHandler{DB: config.Database}
 	mux := http.NewServeMux()
 
-	// User routes
-	mux.HandleFunc("GET /app/users", auth.AuthMiddleware(handlers.GetUsers))
-	mux.HandleFunc("POST /app/users", handlers.AddUser)
+	// Set
+	mux.HandleFunc("GET /api/sets/{setID}", DBHandler.GetSetByID)
+	mux.HandleFunc("POST /api/sets", middleware.SyncUserMiddleware(DBHandler.CreateFlashCardSet))
+	mux.HandleFunc("PUT /api/sets/{setID}", middleware.SyncUserMiddleware(DBHandler.UpdateSetByID))
+	mux.HandleFunc("DELETE /api/sets/{setID}", middleware.SyncUserMiddleware(DBHandler.DeleteSetByID))
 
-	// Flashcard Set routes
-	mux.HandleFunc("GET /app/users/{nickname}/flashcard-sets", auth.AuthMiddleware(handlers.GetUserFlashcardSets)) // all flashcards
-	mux.HandleFunc("GET /app/users/{nickname}/sets/{title}", handlers.GetUserFlashcardSetByTitle)                  // singular flashcard set
+	// User sets
+	mux.HandleFunc("GET /api/users/{nickname}/sets", DBHandler.GetSetsForUser)
+	mux.HandleFunc("GET /api/users/{nickname}/mindmaps", DBHandler.GetMindMapsForUser)
 
-	mux.HandleFunc("POST /app/createSet", auth.AuthMiddleware(handlers.CreateSetWithCards))
-	mux.HandleFunc("POST /app/updateSet", auth.AuthMiddleware(handlers.UpdateSetWithCards))
-	mux.HandleFunc("POST /app/deleteSet", auth.AuthMiddleware(handlers.DeleteUserFlashcardSet))
+	// Mind map
+	mux.HandleFunc("GET /api/sets/{setID}/mindmaps/{mindMapID}", DBHandler.GetMindMapByID)
+	mux.HandleFunc("GET /api/sets/{setID}/mindmaps", DBHandler.GetMindMapsForSet)
+	mux.HandleFunc("POST /api/sets/{setID}/mindmaps", middleware.SyncUserMiddleware(DBHandler.CreateMindMap))
+	mux.HandleFunc("PUT /api/sets/{setID}/mindmaps/{mindMapID}", middleware.SyncUserMiddleware(DBHandler.UpdateMindMapByID))
+	mux.HandleFunc("DELETE /api/sets/{setID}/mindmaps/{mindMapID}", middleware.SyncUserMiddleware(DBHandler.DeleteMindMapByID))
+	mux.HandleFunc("PUT /api/sets/{setID}/mindmaps/{mindMapID}/connections", DBHandler.UpdateMindMapConnections)
+	mux.HandleFunc("PUT /api/sets/{setID}/mindmaps/{mindMapID}/layouts", DBHandler.UpdateMindMapLayouts)
 
-	mux.HandleFunc("GET /app/{nickname}/sets/mindmap/{setName}", auth.AuthMiddleware(handlers.GetMindMap))
-	mux.HandleFunc("GET /app/{nickname}/{setName}/mindmaps", auth.AuthMiddleware(handlers.GetMindMapForSets))
-	mux.HandleFunc("GET /app/{nickname}/mindmap/state/{title}", auth.AuthMiddleware((handlers.GetMindMapState)))
-	mux.HandleFunc("POST /app/mindmap/create", auth.AuthMiddleware((handlers.CreateMindMap)))
-	mux.HandleFunc("POST /app/mindmap/checkDup", auth.AuthMiddleware((handlers.CheckDup)))
-	mux.HandleFunc("POST /app/mindmap/delete", auth.AuthMiddleware((handlers.DeleteMindMap)))
-	mux.HandleFunc("POST /app/mindmap/updateConnections", auth.AuthMiddleware((handlers.UpdateConnections)))
-	mux.HandleFunc("POST /app/mindmap/updateNodeLayout", auth.AuthMiddleware((handlers.UpdateNodeLayout)))
+	// Blocks
+	mux.HandleFunc("GET /api/blocks/leaderboard/{setID}", DBHandler.GetBlocksLeaderboard)
+	mux.HandleFunc("POST /api/blocks/score/{setID}", DBHandler.CreateBlockScore)
+
+	// Flashcard
+	mux.HandleFunc("POST /api/sets/{setID}/flashcards/", middleware.SyncUserMiddleware(DBHandler.CreateFlashCard))
+	mux.HandleFunc("GET /api/sets/{setID}/flashcards/{flashcardID}", middleware.SyncUserMiddleware(DBHandler.GetFlashcardByID))
+	mux.HandleFunc("GET /api/sets/{setID}/flashcards", DBHandler.GetFlashcardsForSet)
+	mux.HandleFunc("PUT /api/sets/{setID}/flashcards/{flashcardID}", middleware.SyncUserMiddleware(DBHandler.UpdateFlashCardByID))
+	mux.HandleFunc("DELETE /api/sets/{setID}/flashcards/{flashcardID}", middleware.SyncUserMiddleware(DBHandler.DeleteFlashCardByID))
 
 	// Configure CORS with specific options
 	corsHandler := cors.New(cors.Options{
@@ -56,7 +67,7 @@ func main() {
 		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"},
 		AllowCredentials: true,
 		MaxAge:           86400,
-	}).Handler(mux)
+	}).Handler(authMiddleware(mux))
 
 	// Server configuration
 

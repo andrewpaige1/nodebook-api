@@ -1,11 +1,11 @@
 package config
 
 import (
+	"log"
 	"os"
 
-	"github.com/andrewpaige1/nodebook-api/models"
+	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -14,14 +14,14 @@ var Database *gorm.DB
 func Connect() error {
 	var err error
 	var dialect gorm.Dialector
-
-	// Check if DB_URL is set (production environment)
+	err = godotenv.Load()
+	if err != nil {
+		log.Printf("Warning: .env file not found, environment variables might not be loaded: %v", err)
+	}
+	// Check if DB_URL is set
 	dbURL := os.Getenv("DB_URL")
 	if dbURL != "" {
 		dialect = postgres.Open(dbURL)
-	} else {
-		// Use SQLite for local development
-		dialect = sqlite.Open("test.db")
 	}
 
 	// Open database connection
@@ -31,13 +31,14 @@ func Connect() error {
 	}
 
 	// Auto migrate the schema
-	err = Database.AutoMigrate(&models.Flashcard{}, &models.User{}, &models.FlashcardSet{}, &models.MindMap{},
+	/*err = Database.AutoMigrate(&models.Flashcard{}, &models.User{}, &models.FlashcardSet{}, &models.MindMap{},
 		&models.MindMapConnection{},
 		&models.MindMapNodeLayout{},
+		&models.BlocksScore{},
 	)
 	if err != nil {
 		panic("failed to auto migrate database")
-	}
+	}*/
 
 	return nil
 }
