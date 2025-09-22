@@ -25,7 +25,13 @@ func SyncUserMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		auth0ID := claims.RegisteredClaims.Subject
 		nickname := ""
+		if claims != nil {
+			if customClaims, ok := claims.CustomClaims.(*CustomClaims); ok && customClaims != nil {
+				nickname = customClaims.Nickname
+			}
+		}
 
+		// Struct to simplify working with payload
 		type Auth0Payload struct {
 			Auth0ID  string `json:"sub"`
 			Nickname string `json:"nickname"`
@@ -35,9 +41,9 @@ func SyncUserMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			Auth0ID:  auth0ID,
 			Nickname: nickname,
 		}
-
 		var user models.User
 		result := config.Database.Where("auth0_id = ?", auth0ID).First(&user)
+
 		if result.Error != nil {
 			// User does not exist, create a new one
 			user = models.User{
@@ -52,30 +58,21 @@ func SyncUserMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			}
 			log.Printf("Created new user: %s\n", user.Nickname)
 		} else {
-			// User exists, update details if necessary
-			updated := false
-			if user.Nickname != auth0Payload.Nickname && auth0Payload.Nickname != "" {
+			// User exists, update nickname only if non-empty and changed
+			if auth0Payload.Nickname != "" && user.Nickname != auth0Payload.Nickname {
 				user.Nickname = auth0Payload.Nickname
-				updated = true
-			}
-			if updated {
 				saveResult := config.Database.Save(&user)
 				if saveResult.Error != nil {
 					http.Error(w, "Failed to update user", http.StatusInternalServerError)
 					log.Println("Database update error:", saveResult.Error)
 					return
 				}
-				//log.Printf("Updated user: %s\n", user.Nickname)
+				log.Printf("Updated user nickname: %s\n", user.Nickname)
 			}
 		}
 
 		// Add user to context for downstream handlers
-		ctx := r.Context()
-		const userContextKey contextKey = "user"
-		ctx = context.WithValue(ctx, userContextKey, &user)
-		r = r.WithContext(ctx)
-
-		// Call the next handler
-		next.ServeHTTP(w, r)
+		ctx := context.WithValue(r.Context(), contextKey("user"), &user)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }

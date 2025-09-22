@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"slices"
+
 	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
@@ -16,7 +18,8 @@ import (
 
 // CustomClaims contains custom data we want from the token.
 type CustomClaims struct {
-	Scope string `json:"scope"`
+	Scope    string `json:"scope"`
+	Nickname string `json:"https://api.mindthred.com/nickname"`
 }
 
 // Validate does nothing for this example, but we need
@@ -73,11 +76,5 @@ func EnsureValidToken() func(next http.Handler) http.Handler {
 // HasScope checks whether our claims have a specific scope.
 func (c CustomClaims) HasScope(expectedScope string) bool {
 	result := strings.Split(c.Scope, " ")
-	for i := range result {
-		if result[i] == expectedScope {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(result, expectedScope)
 }
