@@ -58,16 +58,24 @@ func SyncUserMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			}
 			log.Printf("Created new user: %s\n", user.Nickname)
 		} else {
-			// User exists, update nickname only if non-empty and changed
+			// User exists, update nickname only if non-empty, changed, and not used by another user
 			if auth0Payload.Nickname != "" && user.Nickname != auth0Payload.Nickname {
-				user.Nickname = auth0Payload.Nickname
-				saveResult := config.Database.Save(&user)
-				if saveResult.Error != nil {
-					http.Error(w, "Failed to update user", http.StatusInternalServerError)
-					log.Println("Database update error:", saveResult.Error)
-					return
+				var count int64
+				config.Database.Model(&models.User{}).
+					Where("nickname = ? AND id != ?", auth0Payload.Nickname, user.ID).
+					Count(&count)
+				if count == 0 {
+					user.Nickname = auth0Payload.Nickname
+					saveResult := config.Database.Save(&user)
+					if saveResult.Error != nil {
+						http.Error(w, "Failed to update user", http.StatusInternalServerError)
+						log.Println("Database update error:", saveResult.Error)
+						return
+					}
+					log.Printf("Updated user nickname: %s\n", user.Nickname)
+				} else {
+					log.Printf("Nickname '%s' already in use by another user, skipping update.\n", auth0Payload.Nickname)
 				}
-				log.Printf("Updated user nickname: %s\n", user.Nickname)
 			}
 		}
 
